@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <body>
+    <script>
+      fetch("http://localhost:5000/users")
+        .then((r) => {
+          console.log("status:", r.status);
+          return r.text(); // use text() instead of json() temporarily
+        })
+        .then((data) => console.log(data))
+        .catch((err) => console.error(err));
+    </script>
+  </body>
+</html>
