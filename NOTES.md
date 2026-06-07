@@ -137,3 +137,48 @@ You'll see 200 on first request, 304 on repeat requests with same data.
 
 **Pro tip:** Never use `origin: '*'` in production — that allows
 any website to call your API. Always whitelist specific origins.
+
+---
+
+## Day 5 — Body Parsing & Validation
+
+**Core idea:** Never trust incoming data. Validate everything before
+it touches your database. Same concept as frontend validation but the
+purpose is different — frontend protects UX, backend protects data integrity.
+
+**3 questions on every incoming request:**
+1. Is the body parseable? (express.json() handles this)
+2. Are required fields present?
+3. Are the values the right shape/format?
+
+**express.json()** — parses raw incoming bytes into a JS object and puts
+it on req.body. Without it req.body is always undefined. Think of it as
+automatic JSON.parse() that runs on every request.
+
+**Validation pattern — collect all errors, not just the first:**
+```js
+function validateUser(data) {
+  const errors = []
+  if (!data.name) errors.push({ field: 'name', message: 'required' })
+  if (!data.email) errors.push({ field: 'email', message: 'required' })
+  return errors
+}
+
+if (errors.length > 0) {
+  return res.status(422).json({ error: 'validation failed', details: errors })
+}
+```
+Collecting all errors = user sees everything wrong at once.
+Stopping at first = user has to submit multiple times to find all problems.
+
+**400 vs 422:**
+- 400 — malformed request, wrong type, can't be parsed
+- 422 — right structure but invalid values (email missing @)
+
+**The details array** — tells the frontend exactly which field failed
+and why. Same pattern as React Hook Form errors, just from the server.
+Frontend can use it to show field-level error messages.
+
+**Common mistake:** Weak validation like checking for '@' in email.
+Use a regex or validator.js in production. The pattern is right,
+the implementation needs tightening.
