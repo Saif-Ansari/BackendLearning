@@ -182,3 +182,64 @@ Frontend can use it to show field-level error messages.
 **Common mistake:** Weak validation like checking for '@' in email.
 Use a regex or validator.js in production. The pattern is right,
 the implementation needs tightening.
+
+---
+
+## Day 6 — Error Handling
+
+**Core idea:** Never let raw errors reach the client. One global error
+handler catches everything. Client gets a safe message, server logs the full details.
+
+**Express middleware order matters — top to bottom:**
+1. Body parsing middleware
+2. Routes
+3. 404 handler (catches unmatched routes)
+4. Global error handler (catches anything that called next(err))
+
+**next() vs next(err):**
+- `next()` — continue to the next middleware
+- `next(err)` — skip everything, jump straight to the error handler
+
+**Why the error handler has 4 arguments:**
+Express identifies an error handler by its signature — exactly 4 arguments (err, req, res, next).
+3 arguments = normal middleware. Express won't send errors to it.
+The signature is what makes it special, not the position alone.
+
+**asyncHandler — wraps async routes so you don't need try/catch everywhere:**
+```js
+const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next)
+}
+```
+Without it, async errors crash the server silently.
+With it, any thrown error automatically calls next(err).
+Think of it like a React error boundary but for routes.
+
+**Custom error class — lets you attach a status code to any error:**
+```js
+class AppError extends Error {
+  constructor(message, statusCode) {
+    super(message)
+    this.statusCode = statusCode
+  }
+}
+// usage
+throw new AppError('user not found', 404)
+```
+
+**Global error handler pattern:**
+```js
+app.use((err, req, res, next) => {
+  console.error(err)  // full details on server
+  const statusCode = err.statusCode || 500
+  const message = err.statusCode ? err.message : 'something went wrong'
+  res.status(statusCode).json({ error: message })
+})
+```
+- Known errors (AppError) → use their message and status code
+- Unknown errors (500) → hide the real message, log it server side
+- 500 errors are hidden because they may expose file paths, DB details,
+  or internal logic that attackers could exploit
+
+**Port conflicts** — if your server behaves unexpectedly, check if
+another service is already running on that port.
