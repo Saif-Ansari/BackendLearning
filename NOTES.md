@@ -243,3 +243,59 @@ app.use((err, req, res, next) => {
 
 **Port conflicts** — if your server behaves unexpectedly, check if
 another service is already running on that port.
+
+---
+
+## Day 7 — Environment Config & Secrets
+
+**Core idea:** Code is public, config is private. Secrets never live
+in code — not even in private repos. Companies have been breached this way.
+
+**Never do this:**
+```js
+const JWT_SECRET = 'supersecretkey'
+const db = postgres('postgresql://admin:password123@localhost/myapp')
+```
+
+**The fix — environment variables:**
+- Development → values come from `.env` file (never committed)
+- Production → values set directly on the server's OS environment
+- Same code runs everywhere, different config per environment
+
+**process.env** — Node.js built-in object that holds all environment
+variables from the OS. Always available without any library.
+`dotenv` just reads your `.env` file and injects values into `process.env`.
+In production there's no `.env` file — the server environment variables
+are set directly on the host.
+
+**Always add `.env` to `.gitignore`** — one `.env` at project root,
+one `.gitignore` entry. Never commit it.
+
+**config.js pattern — single source of truth for all config:**
+```js
+module.exports = {
+  port: process.env.PORT || 3000,
+  jwtSecret: process.env.JWT_SECRET,
+  dbUrl: process.env.DB_URL,
+}
+```
+- Read `process.env` in one place only
+- Import `config` everywhere else
+- Scalable — change a variable name in one file, not 20 places
+- Never read `process.env` scattered across your codebase
+
+**Fail fast — validate required env vars on startup:**
+```js
+const requiredEnvVars = ['JWT_SECRET', 'DB_URL']
+requiredEnvVars.forEach(key => {
+  if (!process.env[key]) {
+    throw new Error(`Missing required environment variable: ${key}`)
+  }
+})
+```
+Server refuses to start if config is missing.
+Better a clear startup error than a mysterious 500 in production
+when someone tries to use an undefined secret.
+
+**Never return secrets in API responses** — even in dev.
+`config.jwtSecret` stays on the server, never in a JSON response.
