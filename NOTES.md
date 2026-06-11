@@ -299,3 +299,67 @@ when someone tries to use an undefined secret.
 
 **Never return secrets in API responses** — even in dev.
 `config.jwtSecret` stays on the server, never in a JSON response.
+
+---
+
+## Day 8 — Project Structure
+
+**Core idea:** Each layer has one job. As the app grows you know
+exactly where to look for anything — routes, logic, data access.
+
+**The 4 layers:**
+- `routes/` → defines URL endpoints only, nothing else
+- `controllers/` → reads req, calls service, sends res
+- `services/` → business logic, validation, decisions
+- `db/queries/` → all database calls, nothing else
+
+**The rule — each layer only talks to the layer below it:**
+
+route → controller → service → db query
+
+Never skip a layer. A controller never touches the DB directly.
+A service never touches req or res.
+
+**What each layer knows and doesn't know:**
+
+| Layer | Knows about | Doesn't know about |
+|-------|------------|-------------------|
+| routes | URLs, HTTP methods | everything else |
+| controllers | req, res, HTTP | business rules, DB |
+| services | business logic, validation | req, res, HTTP |
+| db/queries | database calls | everything else |
+
+**Why one file doesn't scale:**
+- Files become thousands of lines
+- Hard to find anything
+- Hard to test individual pieces
+- Multiple devs can't work on it without conflicts
+
+**Request flow example — GET /api/v1/users/1:**
+
+app.js matches /api/v1/users → usersRouter
+router matches GET /:id → usersController.getOne
+controller parses req.params.id → calls usersService.getUserById(1)
+service checks user exists → calls usersDb.findById(1)
+db finds and returns user
+service returns user to controller
+controller sends res.status(200).json(user)
+
+
+**app.js vs server.js:**
+- `app.js` — Express setup, middleware, routes (exportable, testable)
+- `server.js` — just calls app.listen(), nothing else
+
+**dotenv path tip:**
+```js
+require('dotenv').config({ path: path.join(__dirname, '../.env') })
+```
+Use explicit path when .env is not in the same directory.
+Bare `require('dotenv').config()` walks up directories and may work
+by accident — explicit is always safer.
+
+**Controller knows:** req, res, HTTP status codes
+**Controller doesn't know:** business rules, database, how data is stored
+
+**Service knows:** business logic, validation, what's allowed
+**Service doesn't know:** req, res, HTTP, routes, how data is fetched
